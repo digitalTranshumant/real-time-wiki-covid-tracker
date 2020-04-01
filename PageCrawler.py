@@ -319,7 +319,7 @@ itemsInfoTable = itemsInfoTable.join(QiOfLabels, on='Instace_Of',rsuffix='_tmp')
 
 
 # SAve on database
-conn = sqlite3.connect('AllWikidataItems.sqlite')
+conn = sqlite3.connect('/home/dsaez/real-time-wiki-covid-tracker/AllWikidataItems.sqlite')
 # first 
 itemsInfoTable.to_sql(name='itemsInfoTable', if_exists='replace', con=conn)
 pagesPerProjectTable.to_sql(name='pagesPerProjectTable', if_exists='replace', con=conn)
