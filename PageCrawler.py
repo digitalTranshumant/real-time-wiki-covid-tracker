@@ -291,7 +291,7 @@ for P in props:
         for Pid,data in P['entities'].items():
             tmplabel = data.get('labels').get('en',{})
             propLabels[Pid]= tmplabel.get('value','unknown')
-propLabels = pd.DataFrame.from_dict(propLabels,orient='index',columns=['connector Label'])
+propLabels = pd.DataFrame.from_dict(propLabels,orient='index',columns=['connector_Label'])
 propLabels['connector'] = propLabels.index
 
 #adding labels to itemsInfoTable

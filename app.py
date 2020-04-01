@@ -7,11 +7,11 @@ app = Flask(__name__)
 @app.route('/')
 def index():
 	conn = sqlite3.connect('AllWikidataItems.sqlite')
-	totalEdits = pd.read_sql(''' SELECT COUNT(DISTINCT page,project,timestamp) as cnt  FROM  revisions ''', con=conn).iloc[0].cnt  
+	totalEdits = pd.read_sql(''' SELECT COUNT(*) as cnt FROM(SELECT  DISTINCT project,page,timestamp FROM  revisions) ''', con=conn).iloc[0].cnt  
 	editors = pd.read_sql(''' SELECT COUNT(DISTINCT user ) as cnt  FROM  revisions ''', con=conn).iloc[0].cnt  
 	pages = pd.read_sql(''' SELECT COUNT(*) as cnt  FROM  pagesPerProjectTable ''', con=conn).iloc[0].cnt 
 	projects = pd.read_sql(''' SELECT COUNT(DISTINCT(project))  as cnt  FROM  pagesPerProjectTable ''', con=conn).iloc[0].cnt 
-	updated = pd.to_datetime(pd.read_sql(''' SELECT max(revisions_update)  as cnt  FROM  updated ''', con=conn).iloc[0].cnt).strftime('%Y-%b-%d %H:%M:%S')
+	updated = pd.to_datetime(pd.read_sql(''' SELECT max(revisions_update)  as cnt  FROM  updated ''', con=conn).iloc[0].cnt)
 
 	data = {'pages':pages,'totalEdits':totalEdits,'editors':editors,'projects':projects,'updated':updated}
 	return """
@@ -44,16 +44,18 @@ def pagesNoHumans():
             itemsInfoTable INNER JOIN pagesPerProjectTable ON pagesPerProjectTable.wikidataItem = itemsInfoTable.item_id
             WHERE itemsInfoTable.Instace_Of != 'Q5' 
             ''',con=conn).sort_values(by=['project','page'])
-	return pages.to_html(index=False)
+	pages['url'] =pages.url.apply(lambda x: '<a href="%s"> %s </a>' % (x,x))
+	return pages.to_html(index=False,escape=False)
 
 
 @app.route('/pages')
 def pages():
 	conn = sqlite3.connect('AllWikidataItems.sqlite')
-	pages = pd.read_sql('''SELECT DISTINCT(pagesPerProjectTable.page), pagesPerProjectTable.wikidataItem, pagesPerProjectTable.project,pagesPerProjectTable.wikilink,  itemsInfoTable.Instace_Of_Label, pagesPerProjectTable.url, itemsInfoTable.connector_Label        FROM 
+	pages = pd.read_sql('''SELECT DISTINCT pagesPerProjectTable.page, pagesPerProjectTable.wikidataItem, pagesPerProjectTable.project,pagesPerProjectTable.wikilink,  itemsInfoTable.Instace_Of_Label, pagesPerProjectTable.url, itemsInfoTable.connector_Label        FROM 
             itemsInfoTable INNER JOIN pagesPerProjectTable ON pagesPerProjectTable.wikidataItem = itemsInfoTable.item_id
                    ''',con=conn).sort_values(by=['project','page'])
-	return pages.to_html(index=False)
+	pages['url'] =pages.url.apply(lambda x: '<a href="%s"> %s </a>' % (x,x))
+	return pages.to_html(index=False,escape=False)
 
 
 

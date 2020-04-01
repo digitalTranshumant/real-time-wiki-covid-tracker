@@ -1,6 +1,6 @@
 #Download edits
 
-from time import time
+import datetime
 import mwapi
 import pandas as pd
 import pickle 
@@ -8,7 +8,7 @@ import pandas as pd
 import sqlite3
 from random import randint
 conn = sqlite3.connect('/home/dsaez/real-time-wiki-covid-tracker/AllWikidataItems.sqlite')
-now = time()
+now = datetime.datetime.now().strftime('%Y-%b-%d %H:%M:%S') 
 
 defaultStartTime = '2020-01-01T00:00:00Z'
 
