@@ -7,8 +7,8 @@ app = Flask(__name__)
 @app.route('/')
 def index():
 	conn = sqlite3.connect('AllWikidataItems.sqlite')
-	totalEdits = pd.read_sql(''' SELECT COUNT(*) as cnt  FROM  revisions ''', con=conn).iloc[0].cnt  
-	editors = pd.read_sql(''' SELECT COUNT(DISTINCT(user)) as cnt  FROM  revisions ''', con=conn).iloc[0].cnt  
+	totalEdits = pd.read_sql(''' SELECT COUNT(DISTINCT page,project,timestamp) as cnt  FROM  revisions ''', con=conn).iloc[0].cnt  
+	editors = pd.read_sql(''' SELECT COUNT(DISTINCT user ) as cnt  FROM  revisions ''', con=conn).iloc[0].cnt  
 	pages = pd.read_sql(''' SELECT COUNT(*) as cnt  FROM  pagesPerProjectTable ''', con=conn).iloc[0].cnt 
 	projects = pd.read_sql(''' SELECT COUNT(DISTINCT(project))  as cnt  FROM  pagesPerProjectTable ''', con=conn).iloc[0].cnt 
 	updated = pd.to_datetime(pd.read_sql(''' SELECT max(revisions_update)  as cnt  FROM  updated ''', con=conn).iloc[0].cnt).strftime('%Y-%b-%d %H:%M:%S')
@@ -25,7 +25,7 @@ def index():
 
 		This data was updated at {updated} UTC <br>
 		To know more about the methodology to build the list of pages, <a href='https://paws-public.wmflabs.org/paws-public/User:Diego_(WMF)/CoronaAllRelatedPagesMarch30.ipynb'> 
-		please go this notebook. </a> <br> All these results are based on public data. 
+		please go this notebook. </a> <br> All these results are based on public data. Find the <a href='https://github.com/digitalTranshumant/real-time-wiki-covid-tracker'> code here. </a>
 		
 		""".format(**data)
 

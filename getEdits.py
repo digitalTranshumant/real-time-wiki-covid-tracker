@@ -29,7 +29,7 @@ def saveRevisionsPerDay(page_name,project,startdate):
    rev_user = rev_doc['user']
    row.append([project,page_name,rev_timestamp,rev_user])
  df = pd.DataFrame(row,columns =['project','page','timestamp','user'])
- df.to_sql(name='revisions', if_exists='append', con=conn)
+ df.to_sql(name='revisions', if_exists='append',index_label = ['page','project','timestamp'], con=conn)
 
 
 try: #if revision table already exists
@@ -49,10 +49,7 @@ for index, row in pagesPerProject.iterrows():
 	except:
 		pass
 
-#remove duplicates
-revisions = pd.read_sql(''' SELECT * FROM  revisions''', con=conn)
-revisions.drop_duplicates(inplace=True)
-revisions.to_sql(name='revisions', if_exists='replace', con=conn,index_label = ['page','project','timestamp'])
+
 updated = pd.DataFrame([now],columns=['revisions_update']) 
 updated.to_sql(name='updated', if_exists='replace', con=conn)
 
