@@ -8,7 +8,7 @@ from flask import Response
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-
+# TODO: give editors per project
 ## Config
 app = Flask(__name__)
 pathToDB = '/home/dsaez/real-time-wiki-covid-tracker/AllWikidataItems.sqlite'
@@ -29,7 +29,8 @@ def index():
 		There are {totalEdits} edits  done by {editors} editors in {projects} Wikipedia projects. <br> 
 		<ul>
 		<li><a href='/perDayNoHumans'> Total daily edits </a>  (<a href='/perDay?data=True'>raw data</a>). </li>
-		<li><a href='/perProject'> Amount of edits per project </a> (<a href='/perProject?data=True'>raw data</a>).</li> 
+	<li><a href='/perProjectNoHumans'> Amount of edits per project </a> (<a href='/perProjectNoHumans?data=True'>raw data</a>).</li>
+
 		<li><a href='/pagesNoHumans'> List of all related pages  </a>  (<a href='/pagesNoHumans?data=True'>raw data</a>). </li>
 
 		<li><a href='/pages'> List of all related pages including Humans (Q5). Usually humans are related with COVID-19 by 'Medical Condition' or 'Cause of Death'</a> (<a href='/pages?data=True'>raw data</a>).  </li>
@@ -42,6 +43,8 @@ def index():
 		""".format(**data)
 
 
+
+
 @app.route('/perProject')
 def perProject():
 	dump = request.args.get('data',False)
@@ -50,6 +53,7 @@ def perProject():
 	if dump:
 		return jsonify(dict(zip(revisions['project'],revisions['cnt'])))	
 	return revisions.to_html(index=False)
+
 
 @app.route('/pagesNoHumans')
 def pagesNoHumans():
@@ -91,14 +95,25 @@ def perDay():
 @app.route('/perDayNoHumans')
 def perDayNoHumans():
 	dump = request.args.get('data',False)
-	days = getEditsPerDay()
+	project = request.args.get('project',False)
+	days = getEditsPerDay(humans=False,project=project)
 	if dump:
 		return jsonify(days)
 	return days.to_html()
 
+@app.route('/perProjectNoHumans')
+def perProjectNoHumans():
+	dump = request.args.get('data',False)
+	if dump:
+		return jsonify(getEditsPerProject())
+	return getEditsPerProject().to_html()
 
 
-def getEditsPerDay(project=False,humans=True):
+
+
+### Functions
+
+def getEditsPerDay(project=False,humans=False):
 	conn = sqlite3.connect(pathToDB)
 	if not project:
 		revisions = pd.read_sql(''' SELECT timestamp,page,project  FROM  revisions''', con=conn)
@@ -134,8 +149,7 @@ def getEditors(project=False,humans=True):
 		revisions = pd.read_sql(''' SELECT timestamp,page,project,user   FROM  revisions WHERE project = '%s' ''' % project, con=conn)
 	if not humans:	
 		pages = pagesNoHumans()
-		revisions = pd.merge(revisions,pages,on=['page','project'])[['timestamp','project','page','user']]
-		
+		revisions = pd.merge(revisions,pages,on=['page','project'])[['timestamp','project','page','user']]	
 	return revisions.user.unique().size
 
 def numProjects(humans=True):
@@ -147,4 +161,14 @@ def numProjects(humans=True):
 		
 	return revisions.project.unique().size
 
-''
+def getEditsPerProject(humans=False):
+	conn = sqlite3.connect(pathToDB)
+	revisions = pd.read_sql(''' SELECT timestamp,page,project   FROM  revisions ''' , con=conn)
+	if not humans:	
+		pages = pagesNoHumans()
+		revisions = pd.merge(revisions,pages,on=['page','project'])[['timestamp','project','page']].drop_duplicates() 		
+	revisions['day'] = pd.to_datetime(revisions['timestamp']).dt.strftime('%Y-%m-%d')
+	projects = revisions[['project','timestamp']].groupby('project').agg('count')
+	projects.sort_index(inplace=True)
+	return projects
+
