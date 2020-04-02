@@ -2,11 +2,12 @@ from flask import Flask
 import pandas as pd
 import sqlite3
 from flask import jsonify
-from flask import request
+from flask import request, render_template
 import io
 from flask import Response
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
+
 
 # TODO: give editors per project
 ## Config
@@ -25,7 +26,7 @@ def index():
 
 	data = {'pages':pages,'totalEdits':totalEdits,'editors':editors,'projects':projects,'updated':updated}
 	return """
-		<h1> General statistics about COVID-19 in Wikipedia projects </h1>
+		<h1> General statistics about COVID-19 related pages across Wikipedia projects </h1>
 		There are {totalEdits} edits  done by {editors} editors in {projects} Wikipedia projects. <br> 
 		<ul>
 		<li><a href='/perDayNoHumans'> Total daily edits </a>  (<a href='/perDay?data=True'>raw data</a>). </li>
@@ -109,8 +110,6 @@ def perProjectNoHumans():
 	return getEditsPerProject().to_html()
 
 
-
-
 ### Functions
 
 def getEditsPerDay(project=False,humans=False):
@@ -171,4 +170,9 @@ def getEditsPerProject(humans=False):
 	projects = revisions[['project','timestamp']].groupby('project').agg('count')
 	projects.sort_index(inplace=True)
 	return projects
+
+
+@app.route('/downloadSqlite')
+def sqliteDownload():
+    return app.send_static_file('AllWikidataItems.sqlite')
 
