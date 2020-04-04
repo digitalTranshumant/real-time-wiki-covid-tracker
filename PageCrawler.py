@@ -21,7 +21,8 @@ from itertools import chain
 #get crawling timestamp
 now  = pd.Timestamp.now()
 sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
-wikidata_query_base = 'https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&ids=' 
+#I've added props, to get sitelinks/urls that is not coming by default
+wikidata_query_base = 'https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=aliases|claims|datatype|descriptions|info|labels|sitelinks|sitelinks/urls&ids=' 
 
 # pages linking COVID-19 wikidata item Q84263196
 # whatlinks approach
@@ -196,14 +197,16 @@ if __name__=="__main__":
         if 'sitelinks' in v:
             for wiki,data in v['sitelinks'].items():
                 page = data['title']
-                project ='%s.wikipedia' % wiki.replace('wiki','')
+                project ='%s.%s' %  (data['url'][8:].split('.')[0],data['url'][8:].split('.')[1]) #could be more elegant with regex           
                 pagesPerProject[project] = pagesPerProject.get(project,[])
                 pagesPerProject[project].append(page)
-                article_link = 'https://%s.org/wiki/%s' % (project,page)
-                projectcode = project.split('.')[0]
+                article_link  = data['url']
+                if project.split('.')[1] == 'wikipedia' or  project.split('.')[0] == 'commons': #iwlinks : https://meta.wikimedia.org/wiki/Help:Interwiki_linking
+                    projectcode = project.split('.')[0]
+                else:
+                    projectcode = '%s:%s ' % (project.split('.')[1],project.split('.')[0])
                 wikilink = '[[%s:%s|%s]]' % (projectcode,page,page)
                 pagesPerProjectTable[article_link] = {'project':project,'page':page,'wikidataItem':item,'wikilink':wikilink}
-
 
     #Build     itemsInfoTable        
     itemsInfoTable = pd.DataFrame.from_dict(itemsInfoTable,orient='index')
