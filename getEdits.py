@@ -29,7 +29,7 @@ def saveRevisionsPerDay(page_name,project,startdate):
    rev_user = rev_doc['user']
    row.append([project,page_name,rev_timestamp,rev_user])
  df = pd.DataFrame(row,columns =['project','page','timestamp','user'])
- df.to_sql(name='revisions', if_exists='append',index_label = ['page','project','timestamp'], con=conn)
+ df.to_sql(name='revisions', if_exists='append', con=conn)
 
 
 try: #if revision table already exists
