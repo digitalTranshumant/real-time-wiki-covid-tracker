@@ -12,6 +12,14 @@ import io
 import base64
 from flask import Flask
 from flask_caching import Cache
+from threading import Thread
+
+#testing plotly
+import plotly
+import plotly.graph_objs as go
+import numpy as np
+import json
+
 
 # TODO: give editors per project
 ## Config
@@ -27,7 +35,15 @@ path ='/home/dsaez/real-time-wiki-covid-tracker/'
 pathToDB = path+DB
 
 
+
 @app.route('/')
+@app.cache.cached(timeout=600)	
+def fastIndex():
+	data = getStatsIndex()
+	return render_template('index.html',**data) #this has changed
+
+
+@app.route('/oldindex')
 @app.cache.cached(timeout=600)
 def index():
 	conn = sqlite3.connect(pathToDB)
@@ -37,32 +53,12 @@ def index():
 	pages = pd.read_sql(''' SELECT COUNT(*) as cnt  FROM  pagesPerProjectTable ''', con=conn).iloc[0].cnt 
 	projects = numProjects()
 	updated = pd.to_datetime(pd.read_sql(''' SELECT max(revisions_update)  as cnt  FROM  updated ''', con=conn).iloc[0].cnt)
-	plot = build_plot()
+	plot = create_plot()
 	data = {'pages':pages,'totalEdits':totalEdits,'editors':editors,'projects':projects,'updated':updated,'plot':plot}
-	return """
-		<h1> General statistics about COVID-19 related pages across Wikipedia projects </h1>
-		There are {totalEdits} edits  done by {editors} editors in {projects} Wikipedia projects (excluding pages about people).
-		<ul>
-		<li><a href='/perDayNoHumans'> Total daily edits </a>  (<a href='/perDay?data=True'>raw data</a>). </li>
-	<li><a href='/perProjectNoHumans'> Amount of edits per project </a> (<a href='/perProjectNoHumans?data=True'>raw data</a>).</li>
-
-		<li><a href='/pagesNoHumans'> List of all related pages  </a>  (<a href='/pagesNoHumans?data=True'>raw data</a>). </li>
-
-		<li><a href='/pages'> List of all related pages including Humans (Q5). Usually humans are related with COVID-19 by 'Medical Condition' or 'Cause of Death'</a> (<a href='/pages?data=True'>raw data</a>).  </li>
-		</ul>  
-		<br>
-		{plot}
-		<br>
-		This data was updated at {updated} UTC <br>
-		To know more about the methodology to build the list of pages, <a href='https://paws-public.wmflabs.org/paws-public/User:Diego_(WMF)/CoronaAllRelatedPagesMarch30.ipynb'> 
-		please go this notebook. </a> <br> All these results are based on public data. Find the <a href='https://github.com/digitalTranshumant/real-time-wiki-covid-tracker'> code here. </a>
-		
-		""".format(**data)
-
-
-
+	return render_template('index.html',**data) #this has changed
 
 @app.route('/perProject')
+@app.cache.cached(timeout=600)
 def perProject():
 	dump = request.args.get('data',False)
 	conn = sqlite3.connect(pathToDB)
@@ -194,27 +190,46 @@ def getEditsPerProject(humans=False):
 	return projects
 
 
+#writing this to get faster index stats / be careful when modifying other functions
+def getStatsIndex():
+	conn = sqlite3.connect(pathToDB)
+	pages = pagesNoHumans()
+	revisions = pd.read_sql(''' SELECT timestamp,page,project,user  FROM  revisions''', con=conn)
+	revisions = pd.merge(revisions,pages,on=['page','project'])[['timestamp','project','page','user']]
+	revisions.drop_duplicates(inplace=True)
+	projects = revisions.project.unique().size
+	editors = revisions.user.unique().size
+	totalEdits = revisions.shape[0]
+	updated = pd.to_datetime(revisions.timestamp.max())
+	plot = create_plot()
+	return {'totalEdits':totalEdits,'editors':editors,'projects':projects,'updated':updated,'plot':plot}
+
+
+
+
 #Send sqlite db as file
 @app.route('/downloadSqlite')
 def sqliteDownload():
     return send_from_directory(path, DB, as_attachment=True)
 
 
+#plot example
+def create_plot():
 
-@app.route('/plotPerDay')
-def build_plot():
-
-    img = io.BytesIO()
     perDay = getEditsPerDay(humans=False)
-    plot = perDay.plot(legend=[],title='Edits Per Day')
-    plot.set_ylabel('# Edits')
-    fig = plot.get_figure()
-    fig.savefig(img, format='png')	
-    img.seek(0)
+    data = [
+        go.Bar(
+            x=perDay.index, # assign x as the dataframe column 'x'
+            y=perDay['timestamp']
+        )
+    ]
 
-    plot_url = base64.b64encode(img.getvalue()).decode()
 
-    return '<img src="data:image/png;base64,{}">'.format(plot_url)
+    graphJSON = json.dumps(data, cls=plotly.utils.PlotlyJSONEncoder)
+
+    return graphJSON
+
+
 
 if __name__ == '__main__':
     app.debug = True

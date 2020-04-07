@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>COVID-19 Wikipedia Data</title>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
+</head>
+<body>
+
+
+<div class="container">
+		<h1> General statistics about COVID-19 related pages across Wikipedia projects </h1>
+		There are {{totalEdits}} edits  done by {{editors}} editors in {{projects}} Wikipedia projects (excluding pages about people).
+		<ul>
+		<li><a href='/perDayNoHumans'> Total daily edits </a>  (<a href='/perDay?data=True'>raw data</a>). </li>
+		<li><a href='/perProjectNoHumans'> Amount of edits per project </a> (<a href='/perProjectNoHumans?data=True'>raw data</a>).</li>
+
+		<li><a href='/pagesNoHumans'> List of related pages  </a>  (<a href='/pagesNoHumans?data=True'>raw data</a>). </li>
+
+		<li><a href='/pages'> List of all related pages including Humans (Q5)</a>. Usually humans are related with COVID-19 by 'Medical Condition' or 'Cause of Death' (<a href='/pages?data=True'>raw data</a>).  </li>
+		</ul>  
+		<br>
+    <div class="row">
+        <div class="col-md-6">
+	<h2> Edits per day</h2>
+            <div class="chart" id="bargraph">
+
+    <script>
+        var graphs = {{plot | safe}};
+        Plotly.plot('bargraph',graphs,{});
+    </script>
+            </div>
+        </div>
+    </div>
+		<br>
+		This data was updated at {{updated}} UTC <br>
+		To know more about the methodology to build the list of pages, <a href='https://paws-public.wmflabs.org/paws-public/User:Diego_(WMF)/CoronaAllRelatedPagesMarch30.ipynb'> 
+		please go this notebook. </a> <br> All these results are based on public data. Find the <a href='https://github.com/digitalTranshumant/real-time-wiki-covid-tracker'> code here. </a>
+		
+
+</div>
+</body>
+</html>
