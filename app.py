@@ -2,32 +2,46 @@ from flask import Flask
 import pandas as pd
 import sqlite3
 from flask import jsonify
-from flask import request, render_template
+from flask import request, render_template, send_from_directory
 import io
 from flask import Response
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
-
+import matplotlib.pyplot as plt
+import io
+import base64
+from flask import Flask
+from flask_caching import Cache
 
 # TODO: give editors per project
 ## Config
 app = Flask(__name__)
-pathToDB = '/home/dsaez/real-time-wiki-covid-tracker/AllWikidataItems.sqlite'
+# define the cache config keys, remember that it can be done in a settings file
+app.config['CACHE_TYPE'] = 'simple'
+
+# register the cache instance and binds it on to your app 
+app.cache = Cache(app)   
+
+DB = 'AllWikidataItems.sqlite'
+path ='/home/dsaez/real-time-wiki-covid-tracker/'
+pathToDB = path+DB
+
 
 @app.route('/')
+@app.cache.cached(timeout=600)
 def index():
 	conn = sqlite3.connect(pathToDB)
-	totalEdits = totalEditsNoHumans() #removing duplicates, should be done in sqlite query, but I'm failing on this, so using this work around. TODO:
-	 
+	totalEdits = totalEditsFunc() #
+	#totalEditsHumans = totalEditsFunc(humans=True) #Removing this for performance issues.
 	editors = getEditors(humans=False)
 	pages = pd.read_sql(''' SELECT COUNT(*) as cnt  FROM  pagesPerProjectTable ''', con=conn).iloc[0].cnt 
 	projects = numProjects()
 	updated = pd.to_datetime(pd.read_sql(''' SELECT max(revisions_update)  as cnt  FROM  updated ''', con=conn).iloc[0].cnt)
-
-	data = {'pages':pages,'totalEdits':totalEdits,'editors':editors,'projects':projects,'updated':updated}
+	plot = build_plot()
+	data = {'pages':pages,'totalEdits':totalEdits,'editors':editors,'projects':projects,'updated':updated,'plot':plot}
 	return """
 		<h1> General statistics about COVID-19 related pages across Wikipedia projects </h1>
-		There are {totalEdits} edits  done by {editors} editors in {projects} Wikipedia projects. <br> 
+		There are {totalEdits} edits  done by {editors} editors in {projects} Wikipedia projects (excluding pages about people).
 		<ul>
 		<li><a href='/perDayNoHumans'> Total daily edits </a>  (<a href='/perDay?data=True'>raw data</a>). </li>
 	<li><a href='/perProjectNoHumans'> Amount of edits per project </a> (<a href='/perProjectNoHumans?data=True'>raw data</a>).</li>
@@ -36,7 +50,9 @@ def index():
 
 		<li><a href='/pages'> List of all related pages including Humans (Q5). Usually humans are related with COVID-19 by 'Medical Condition' or 'Cause of Death'</a> (<a href='/pages?data=True'>raw data</a>).  </li>
 		</ul>  
-
+		<br>
+		{plot}
+		<br>
 		This data was updated at {updated} UTC <br>
 		To know more about the methodology to build the list of pages, <a href='https://paws-public.wmflabs.org/paws-public/User:Diego_(WMF)/CoronaAllRelatedPagesMarch30.ipynb'> 
 		please go this notebook. </a> <br> All these results are based on public data. Find the <a href='https://github.com/digitalTranshumant/real-time-wiki-covid-tracker'> code here. </a>
@@ -57,6 +73,7 @@ def perProject():
 
 
 @app.route('/pagesNoHumans')
+@app.cache.cached(timeout=600)
 def pagesNoHumans():
 	dump = request.args.get('data',False)
 	conn = sqlite3.connect(pathToDB)
@@ -71,6 +88,7 @@ def pagesNoHumans():
 
 
 @app.route('/pages')
+@app.cache.cached(timeout=600)
 def pages():
 	dump = request.args.get('data',False)
 	conn = sqlite3.connect(pathToDB)
@@ -86,6 +104,7 @@ def pages():
 	return pages.to_html(index=False,escape=False)
 
 @app.route('/perDay')
+@app.cache.cached(timeout=600)
 def perDay():
 	dump = request.args.get('data',False)
 	days = getEditsPerDay()
@@ -94,6 +113,7 @@ def perDay():
 	return days.to_html()
 
 @app.route('/perDayNoHumans')
+@app.cache.cached(timeout=600)
 def perDayNoHumans():
 	dump = request.args.get('data',False)
 	project = request.args.get('project',False)
@@ -103,6 +123,7 @@ def perDayNoHumans():
 	return days.to_html()
 
 @app.route('/perProjectNoHumans')
+@app.cache.cached(timeout=600)
 def perProjectNoHumans():
 	dump = request.args.get('data',False)
 	if dump:
@@ -136,8 +157,8 @@ def pagesNoHumans():
             ''',con=conn).sort_values(by=['project','page'])
 	return pages
 
-def totalEditsNoHumans(project=False):
-	return  getEditsPerDay(project=project,humans=False).timestamp.sum()
+def totalEditsFunc(project=False,humans=False):
+	return  getEditsPerDay(project=project,humans=humans).timestamp.sum()
 
 
 def getEditors(project=False,humans=True):
@@ -163,6 +184,7 @@ def numProjects(humans=True):
 def getEditsPerProject(humans=False):
 	conn = sqlite3.connect(pathToDB)
 	revisions = pd.read_sql(''' SELECT timestamp,page,project   FROM  revisions ''' , con=conn)
+	revisions = revisions.drop_duplicates()
 	if not humans:	
 		pages = pagesNoHumans()
 		revisions = pd.merge(revisions,pages,on=['page','project'])[['timestamp','project','page']].drop_duplicates() 		
@@ -172,7 +194,28 @@ def getEditsPerProject(humans=False):
 	return projects
 
 
+#Send sqlite db as file
 @app.route('/downloadSqlite')
 def sqliteDownload():
-    return app.send_static_file('AllWikidataItems.sqlite')
+    return send_from_directory(path, DB, as_attachment=True)
 
+
+
+@app.route('/plotPerDay')
+def build_plot():
+
+    img = io.BytesIO()
+    perDay = getEditsPerDay(humans=False)
+    plot = perDay.plot(legend=[],title='Edits Per Day')
+    plot.set_ylabel('# Edits')
+    fig = plot.get_figure()
+    fig.savefig(img, format='png')	
+    img.seek(0)
+
+    plot_url = base64.b64encode(img.getvalue()).decode()
+
+    return '<img src="data:image/png;base64,{}">'.format(plot_url)
+
+if __name__ == '__main__':
+    app.debug = True
+    app.run()
