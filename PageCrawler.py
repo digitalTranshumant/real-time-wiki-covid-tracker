@@ -11,18 +11,35 @@
 #Results are optimized for DB
 
 import requests
-from SPARQLWrapper import SPARQLWrapper, JSON
+from SPARQLWrapper import SPARQLWrapper, JSON, SPARQLExceptions
 import pandas as pd
 import sqlite3
 from tqdm import tqdm
-from functools import reduce
+from functools import reduce, partial
 from itertools import chain
+from urllib.error import HTTPError
 
 #get crawling timestamp
 now  = pd.Timestamp.now()
 sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
 #I've added props, to get sitelinks/urls that is not coming by default
 wikidata_query_base = 'https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=aliases|claims|datatype|descriptions|info|labels|sitelinks|sitelinks/urls&ids=' 
+
+def get_SPARQL_results(query):
+    sparql.setQuery(query)
+    sparql.setReturnFormat(JSON)
+    try:
+        result = sparql.query()
+        
+        if result.response.status == 200:
+            return result.convert()
+        else:
+            print(result.response.msg)
+
+    except (HTTPError, SPARQLExceptions.EndPointInternalError) as e:
+        print(e)
+        print(query)
+        return None
 
 # pages linking COVID-19 wikidata item Q84263196
 # whatlinks approach
@@ -46,8 +63,7 @@ def get_whatlinks(itemid):
 def get_all_statements(itemid):
     #https://w.wiki/KvX (Thanks User:Dipsacus_fullonum)
     # All statements with item, property, value and rank with COVID-19 (Q84263196) as value for qualifier.
-
-    sparql.setQuery(f"""
+    results = get_SPARQL_results(f"""
     SELECT ?item ?itemLabel ?property ?propertyLabel ?value ?valueLabel ?rank ?qualifier ?qualifierLabel
     WHERE
     {{
@@ -63,17 +79,13 @@ def get_all_statements(itemid):
       SERVICE wikibase:label {{ bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }}
     }}
     """)
-    sparql.setReturnFormat(JSON)
-    results = sparql.query().convert()
 
-    allStatements = pd.io.json.json_normalize(results['results']['bindings'])
-    allStatementsQ = [ link.split('/')[-1] for link in allStatements['item.value'].tolist()]
-    return allStatementsQ
+    return get_Qs(results)
 
 # All truthy statements with COVID-19 (Q84263196) as value.
 #https://w.wiki/KvZ (Thanks User:Dipsacus_fullonum)
 def get_truthy_statements(itemid):
-    sparql.setQuery(f"""
+    results = get_SQARQL_results(f"""
     SELECT ?item ?itemLabel ?property ?propertyLabel
     WHERE
     {{
@@ -81,12 +93,8 @@ def get_truthy_statements(itemid):
       ?property wikibase:directClaim ?claim.
        SERVICE wikibase:label {{ bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }}
     }}""")
-    sparql.setReturnFormat(JSON)
-    results = sparql.query().convert()
-    truthy = pd.io.json.json_normalize(results['results']['bindings'])
-    truthyQ = [ link.split('/')[-1] for link in truthy['item.value'].tolist()]
 
-    return truthyQ
+    return get_Qs(results)
 
 def get_statements(itemid):
 
@@ -96,9 +104,35 @@ def get_statements(itemid):
 
     return(reduce(set.union, (src(itemid) for src in sources),set()))
 
+def get_Qs(results):
+    if results is None:
+        return []
+
+    urls = pd.json_normalize(results['results']['bindings'])
+
+    if len(urls) > 0:
+        urlQ = [ link.split('/')[-1] for link in urls['item.value'].tolist()]
+        return urlQ
+    else:
+        return []
+
+
+def get_items_for_wp_articles(titles, lang='en'):
+    langtitles = ' '.join([f"\"{title}\"@{lang}" for title in titles])
+    results = get_SPARQL_results(f"""
+    SELECT ?item 
+    WHERE
+    {{
+      ?article schema:about ?item.
+      ?article schema:name ?title.
+    VALUES ?title {{ {langtitles} }}
+    }}
+    """)
+
+    return get_Qs(results)
 
 def get_statements_for_ids(item_ids):
-    found_Qs = reduce(set.union, map(get_all_statements, item_ids),set())
+    found_Qs = reduce(set.union, map(get_all_statements, tqdm(item_ids)),set())
     return found_Qs.union(set(item_ids))
 
 ### Getting articles and relation
@@ -165,7 +199,26 @@ def getValueIfWikidataItem(claim):
     
 
 if __name__=="__main__":
-    Qs = get_statements_for_ids({'Q81068910','Q84263196','Q82069695'})
+    import argparse
+    import sys
+    parser = argparse.ArgumentParser(description='Crawl wikidata to find related WP articles.')
+    parser.add_argument('-i', '--base-ids', nargs = '+', help='list of wikidata ids to initialize crawl', default=['Q81068910','Q84263196','Q82069695'])
+
+    parser.add_argument('-a', '--articles-file',  help='file containing list of wikipedia article http urls to initialize crawl', type = argparse.FileType('r'), default=sys.stdin)
+
+    args = parser.parse_args()
+    article_names = map(str.strip, args.articles_file)
+
+    article_chunks = list(chunks(list(article_names), 50))
+    print("getting ids from articles")
+    ids_from_articles = [id for id in chain(* map(get_items_for_wp_articles, tqdm(article_chunks)))]
+
+    print(ids_from_articles)
+
+    ids = set(args.base_ids + ids_from_articles)
+
+    print("getting statements for ids")
+    Qs = get_statements_for_ids(ids)
 
     chunked_Qs = list(chunks(list(Qs),50))
 
