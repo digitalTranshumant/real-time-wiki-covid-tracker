@@ -21,6 +21,16 @@ import numpy as np
 import json
 
 
+
+#add scheduler to keep main page with fresh cache every all time
+import requests
+from apscheduler.schedulers.background import BackgroundScheduler
+
+#save logs
+import logging
+
+
+
 # TODO: give editors per project
 ## Config
 app = Flask(__name__)
@@ -30,20 +40,17 @@ app.config['CACHE_TYPE'] = 'simple'
 # register the cache instance and binds it on to your app 
 app.cache = Cache(app)   
 
+#save logs
+logging.basicConfig(filename='demo.log', level=logging.DEBUG)
+
+#config sqlite DB
 DB = 'AllWikidataItems.sqlite'
 path ='/home/dsaez/real-time-wiki-covid-tracker/'
 pathToDB = path+DB
 
 
-
+#define views
 @app.route('/')
-@app.cache.cached(timeout=600)	
-def fastIndex():
-	data = getStatsIndex()
-	return render_template('index.html',**data) #this has changed
-
-
-@app.route('/oldindex')
 @app.cache.cached(timeout=600)
 def index():
 	conn = sqlite3.connect(pathToDB)
@@ -53,7 +60,7 @@ def index():
 	pages = pd.read_sql(''' SELECT COUNT(*) as cnt  FROM  pagesPerProjectTable ''', con=conn).iloc[0].cnt 
 	projects = numProjects()
 	updated = pd.to_datetime(pd.read_sql(''' SELECT max(revisions_update)  as cnt  FROM  updated ''', con=conn).iloc[0].cnt)
-	plot = create_plot()
+	plot = plotTotalEdits()
 	data = {'pages':pages,'totalEdits':totalEdits,'editors':editors,'projects':projects,'updated':updated,'plot':plot}
 	return render_template('index.html',**data) #this has changed
 
@@ -100,7 +107,6 @@ def pages():
 	return pages.to_html(index=False,escape=False)
 
 @app.route('/perDay')
-@app.cache.cached(timeout=600)
 def perDay():
 	dump = request.args.get('data',False)
 	days = getEditsPerDay()
@@ -109,7 +115,6 @@ def perDay():
 	return days.to_html()
 
 @app.route('/perDayNoHumans')
-@app.cache.cached(timeout=600)
 def perDayNoHumans():
 	dump = request.args.get('data',False)
 	project = request.args.get('project',False)
@@ -119,13 +124,11 @@ def perDayNoHumans():
 	return days.to_html()
 
 @app.route('/perProjectNoHumans')
-@app.cache.cached(timeout=600)
 def perProjectNoHumans():
 	dump = request.args.get('data',False)
 	if dump:
 		return jsonify(getEditsPerProject())
 	return getEditsPerProject().to_html()
-
 
 ### Functions
 
@@ -154,8 +157,8 @@ def pagesNoHumans():
 	return pages
 
 def totalEditsFunc(project=False,humans=False):
-	return  getEditsPerDay(project=project,humans=humans).timestamp.sum()
-
+	conn = sqlite3.connect(pathToDB)
+	return  pd.read_sql(''' SELECT DISTINCT timestamp,page,project  FROM  revisions''', con=conn).shape[0]
 
 def getEditors(project=False,humans=True):
 	conn = sqlite3.connect(pathToDB)
@@ -173,8 +176,7 @@ def numProjects(humans=True):
 	revisions = pd.read_sql(''' SELECT timestamp,page,project,user  FROM  revisions''', con=conn)		
 	if not humans:	
 		pages = pagesNoHumans()
-		revisions = pd.merge(revisions,pages,on=['page','project'])[['timestamp','project','page','user']]
-		
+		revisions = pd.merge(revisions,pages,on=['page','project'])[['timestamp','project','page','user']]	
 	return revisions.project.unique().size
 
 def getEditsPerProject(humans=False):
@@ -190,22 +192,6 @@ def getEditsPerProject(humans=False):
 	return projects
 
 
-#writing this to get faster index stats / be careful when modifying other functions
-def getStatsIndex():
-	conn = sqlite3.connect(pathToDB)
-	pages = pagesNoHumans()
-	revisions = pd.read_sql(''' SELECT timestamp,page,project,user  FROM  revisions''', con=conn)
-	revisions = pd.merge(revisions,pages,on=['page','project'])[['timestamp','project','page','user']]
-	revisions.drop_duplicates(inplace=True)
-	projects = revisions.project.unique().size
-	editors = revisions.user.unique().size
-	totalEdits = revisions.shape[0]
-	updated = pd.to_datetime(revisions.timestamp.max())
-	plot = create_plot()
-	return {'totalEdits':totalEdits,'editors':editors,'projects':projects,'updated':updated,'plot':plot}
-
-
-
 
 #Send sqlite db as file
 @app.route('/downloadSqlite')
@@ -213,9 +199,8 @@ def sqliteDownload():
     return send_from_directory(path, DB, as_attachment=True)
 
 
-#plot example
-def create_plot():
-
+#plotly total edits
+def plotTotalEdits():
     perDay = getEditsPerDay(humans=False)
     data = [
         go.Bar(
@@ -223,12 +208,17 @@ def create_plot():
             y=perDay['timestamp']
         )
     ]
-
-
     graphJSON = json.dumps(data, cls=plotly.utils.PlotlyJSONEncoder)
-
     return graphJSON
 
+
+### Cache alive
+# add a function to keep generated a new call  and cache a version of pages every ten minutes
+def refreshCache():
+    requests.get('https://covid-data.wmflabs.org/')
+scheduler = BackgroundScheduler(daemon=True)
+scheduler.add_job(refreshCache, 'interval', minutes=5)
+scheduler.start()
 
 
 if __name__ == '__main__':
