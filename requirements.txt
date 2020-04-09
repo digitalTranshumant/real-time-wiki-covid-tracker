@@ -106,7 +106,7 @@ python-neutronclient==6.9.1
 python-novaclient==11.0.0
 python-openstackclient==3.16.2
 pytz==2019.1
-PyYAML==3.13
+PyYAML==5.1
 rdflib==4.2.2
 reportbug===7.5.3-deb10u1
 requests==2.21.0
