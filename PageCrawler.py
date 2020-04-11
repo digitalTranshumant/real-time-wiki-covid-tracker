@@ -201,15 +201,19 @@ def getValueIfWikidataItem(claim):
 if __name__=="__main__":
     import argparse
     import sys
+    print('test')
     parser = argparse.ArgumentParser(description='Crawl wikidata to find related WP articles.')
     parser.add_argument('-i', '--base-ids', nargs = '+', help='list of wikidata ids to initialize crawl', default=['Q81068910','Q84263196','Q82069695'])
 
-    parser.add_argument('-a', '--articles-file',  help='file containing list of wikipedia article http urls to initialize crawl', type = argparse.FileType('r'), default=sys.stdin)
+    parser.add_argument('-a', '--articles-file',  help='file containing list of wikipedia article http urls to initialize crawl', type = argparse.FileType('r'), default=[])
 
     args = parser.parse_args()
+    print(args)
     article_names = map(str.strip, args.articles_file)
+    print(list(article_names))
 
     article_chunks = list(chunks(list(article_names), 50))
+    print('test2')
     print("getting ids from articles")
     ids_from_articles = [id for id in chain(* map(get_items_for_wp_articles, tqdm(article_chunks)))]
 
@@ -280,10 +284,11 @@ if __name__=="__main__":
     ## Getting labels for connector (properties)
     Ps = list(itemsInfoTable['connector'].unique())
     props = []
+    print('getting props labels')
     for P in Ps:
         props.append(requests.get('https://www.wikidata.org/w/api.php?action=wbgetentities&ids=%s&format=json' % P).json())
     propLabels ={}
-    for P in props:
+    for P in tqdm(props):
         if 'entities' in P:
             for Pid,data in P['entities'].items():
                 tmplabel = data.get('labels').get('en',{})
@@ -300,7 +305,7 @@ if __name__=="__main__":
     instaceOfQs = list(itemsInfoTable['Instace_Of'].unique())
     print(len(instaceOfQs))
     QiOf = [] # Q instace
-    for Q in instaceOfQs:
+    for Q in tqdm(instaceOfQs):
         QiOf.append(requests.get('https://www.wikidata.org/w/api.php?action=wbgetentities&ids=%s&format=json' % Q).json())
     QiOfLabels ={}
     for P in QiOf:
