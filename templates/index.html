@@ -3,42 +3,61 @@
 <head lang="en">
     <meta charset="UTF-8">
     <title>COVID-19 Wikipedia Data</title>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+<script src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/twitter-bootstrap/4.4.1/js/bootstrap.min.js"></script>
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
 </head>
 <body>
 
 
+<div class="jumbotron jumbotron-fluid">
+  <div class="container">
+		<h1> Data about COVID-19 related articles across Wikipedia projects </h1>
+		There are {{totalEdits}} edits  done by {{editors}} editors in {{projects}} Wikipedia projects (excluding pages about people)
+    </div>
+</div>
+
 <div class="container">
-		<h1> General statistics about COVID-19 related pages across Wikipedia projects </h1>
-		There are {{totalEdits}} edits  done by {{editors}} editors in {{projects}} Wikipedia projects (excluding pages about people).
+
 		<ul>
 		<li><a href='/perDayNoHumans'> Total daily edits </a>  (<a href='/perDay?data=True'>raw data</a>). </li>
 		<li><a href='/perProjectNoHumans'> Amount of edits per project </a> (<a href='/perProjectNoHumans?data=True'>raw data</a>).</li>
-
 		<li><a href='/pagesNoHumans'> List of related pages  </a>  (<a href='/pagesNoHumans?data=True'>raw data</a>). </li>
-
-		<li><a href='/pages'> List of all related pages including Humans (Q5)</a>. Usually humans are related with COVID-19 by 'Medical Condition' or 'Cause of Death' (<a href='/pages?data=True'>raw data</a>).  </li>
+		<li><a href='/pages'> List of all related pages including Humans (Q5)</a>. Usually humans are related with COVID-19 by 'Medical Condition' or 'Cause of Death' (<a href='/pages?data=True'>JSON data</a>).  </li>
+		<li>Get all the data in a <a href='/downloadSqlite'> single sqlite file. </a>  </li>
 		</ul>  
 		<br>
     <div class="row">
-        <div class="col-md-6">
-	<h2> Edits per day</h2>
+        <div class="col-8">
+	<center><h3> Edits per day</h3>
             <div class="chart" id="bargraph">
-
+	</center>
     <script>
         var graphs = {{plot | safe}};
         Plotly.plot('bargraph',graphs,{});
     </script>
             </div>
         </div>
-    </div>
-		<br>
-		This data was updated at {{updated}} UTC <br>
-		To know more about the methodology to build the list of pages, <a href='https://paws-public.wmflabs.org/paws-public/User:Diego_(WMF)/CoronaAllRelatedPagesMarch30.ipynb'> 
-		please go this notebook. </a> <br> All these results are based on public data. Find the <a href='https://github.com/digitalTranshumant/real-time-wiki-covid-tracker'> code here. </a>
+
 		
 
+
+
+    </div>
+
 </div>
+<footer class="footer">
+  <div class="container">
+    <div class="row">
+      <span class="text-muted">
+	        The data was updated at {{updated}} UTC <br>
+		To know more about the methodology to build the list of pages, <a href='https://paws-public.wmflabs.org/paws-public/User:Diego_(WMF)/CoronaAllRelatedPagesMarch30.ipynb'> 
+		please go this notebook. </a> <br> All these results are based on public data. Find the <a href='https://github.com/digitalTranshumant/real-time-wiki-covid-tracker'> code here. </a>
+	        For questions contact <a href='https://meta.wikipedia.org/wiki/User:Diego_(WMF)'>Diego (WMF)</a>
+      </span>
+    </div>
+  </div>
+</footer>
 </body>
 </html>
