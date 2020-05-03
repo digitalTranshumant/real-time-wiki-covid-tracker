@@ -56,7 +56,7 @@ def get_whatlinks(itemid):
 
     QswhatLinks = (v['title'] for v in whatLinks)
     QswhatLinks = set(QswhatLinks)
-    return(Qswhatlinks)
+    return(QswhatLinks)
 
 #Complementary approach using SPARQL
 #TODO: Double check if there are pages appearing that were not included in the whatlinks approach
@@ -84,8 +84,9 @@ def get_all_statements(itemid):
 
 # All truthy statements with COVID-19 (Q84263196) as value.
 #https://w.wiki/KvZ (Thanks User:Dipsacus_fullonum)
+
 def get_truthy_statements(itemid):
-    results = get_SQARQL_results(f"""
+    results = get_SPARQL_results(f"""
     SELECT ?item ?itemLabel ?property ?propertyLabel
     WHERE
     {{
@@ -220,9 +221,12 @@ if __name__=="__main__":
     print(ids_from_articles)
 
     ids = set(args.base_ids + ids_from_articles)
-
-    print("getting statements for ids")
-    Qs = get_statements_for_ids(ids)
+    #Not using get_statements because the query is too big for COVID-19, and generate error, just using get_whatlinks
+    #print("getting statements for ids")
+    #Qs = get_statements_for_ids(ids) # 
+    #USING whatLinks
+    print("getting what Links to seeds")
+    Qs = reduce(lambda x, y:x.union(y), map(get_whatlinks,ids)) 
 
     chunked_Qs = list(chunks(list(Qs),50))
 
