@@ -49,7 +49,12 @@ for index, row in pagesPerProject.iterrows():
 	except:
 		pass
 
-
 updated = pd.DataFrame([now],columns=['revisions_update']) 
 updated.to_sql(name='updated', if_exists='replace', con=conn)
+
+#finally i remove all duplicated rows:
+df = pd.read_sql('SELECT * from revisions',con=conn)    
+df.drop('level_0',axis=1,inplace=True)
+df = df.drop_duplicates()
+df.to_sql(name='revisions', if_exists='replace', con=conn)
 
