@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>COVID-19 Wikipedia Data</title>
+    <link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css" rel="stylesheet">
+  </head>
+  <body>
+      <script type="text/javascript">
+      $(document).ready(function() {
+          $('#example').DataTable();
+        });
+
+    </script>
+    <div class="container">
+   
+      <div class="header">
+        <h1> {{title}} </h1>
+    
+      </div>
+      {% block content %}
+      <div>
+        {{data | safe}}
+      </div>
+      {% endblock %}
+    </div>
+    <script src="https://code.jquery.com/jquery-1.12.4.js" type="text/javascript"></script>
+    <script src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js" type="text/javascript"></script>
+
+    
+ <footer class="footer">
+  <div class="container">
+    <div class="row">
+      <span class="text-muted">
+    
+		To know more about the methodology to build the list of pages, <a href='https://paws-public.wmflabs.org/paws-public/User:Diego_(WMF)/CoronaAllRelatedPagesMarch30.ipynb'> 
+		please go this notebook. </a> All these results are based on public data. Find the <a href='https://github.com/digitalTranshumant/real-time-wiki-covid-tracker'> code here. </a>
+	        For questions contact <a href='https://meta.wikipedia.org/wiki/User:Diego_(WMF)'>Diego (WMF)</a>
+      </span>
+    </div>
+  </div>
+</footer>   
+    
+  </body>
+</html>
