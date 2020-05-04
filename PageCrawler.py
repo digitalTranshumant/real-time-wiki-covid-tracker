@@ -174,6 +174,17 @@ def getRelationships(claims,targetQs): #TODO change relationship to relation
                             pairs.append([prop,targetQs[targetQs.index(Qfound)]])
                     except:
                         pass
+            if 'qualifiers' in relationship:
+                for qprop,qualifiers in relationship['qualifiers'].items():
+                    for qualifier in qualifiers:
+                        datatype = qualifier.get('datatype','')
+                        if datatype=='wikibase-item':
+                            try: #found some cases without  id even for a wikibase-item datatype
+                                Qfound = qualifier['datavalue']['value'].get('id','')
+                                if Qfound in targetQs:
+                                    pairs.append([prop,targetQs[targetQs.index(Qfound)]])
+                            except:
+                                pass
     if not pairs:
         pairs.append(['unknown','unknown'])
     return pairs
@@ -253,7 +264,7 @@ if __name__=="__main__":
         else:
             itemsInfoTable[item]['Instace_Of'] = ['unknown']
         #find COVID-19 / COVID-19 pandemics relationships
-        itemsInfoTable[item]['RelationTuple'] = getRelationships(claims,['Q81068910','Q84263196'])
+        itemsInfoTable[item]['RelationTuple'] = getRelationships(claims,list(ids))
 
         if 'sitelinks' in v:
             for wiki,data in v['sitelinks'].items():
