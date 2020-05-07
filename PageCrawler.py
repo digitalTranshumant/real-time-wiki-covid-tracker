@@ -336,7 +336,7 @@ if __name__=="__main__":
 
 
     # SAve on database
-    conn = sqlite3.connect('./AllWikidataItems.sqlite')
+    conn = sqlite3.connect('/home/dsaez/real-time-wiki-covid-tracker/AllWikidataItems.sqlite')
     # first 
     itemsInfoTable.to_sql(name='itemsInfoTable', if_exists='replace', con=conn)
     pagesPerProjectTable.to_sql(name='pagesPerProjectTable', if_exists='replace', con=conn)
