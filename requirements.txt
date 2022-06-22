@@ -4,7 +4,7 @@ requests==2.21.0
 mwapi==0.5.1
 Flask_Caching==1.8.0
 tqdm==4.45.0
-numpy==1.18.2
+numpy==1.22.0
 pandas==1.0.3
 plotly==4.6.0
 matplotlib==3.2.1
