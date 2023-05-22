@@ -1,6 +1,6 @@
 Flask==1.0.2
 APScheduler==3.6.3
-requests==2.21.0
+requests==2.31.0
 mwapi==0.5.1
 Flask_Caching==1.8.0
 tqdm==4.45.0
